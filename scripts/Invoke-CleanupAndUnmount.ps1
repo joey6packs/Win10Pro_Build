@@ -4,13 +4,10 @@
     Cleans up the mounted image and commits changes.
 
 .DESCRIPTION
-    Stages KB5078885 into the image for first-logon installation, runs DISM
-    component cleanup to reduce WIM size, then unmounts and commits the image.
-    Run this AFTER Invoke-UpdateIntegration.ps1 completes successfully.
-
-    KB5078885 cannot be applied offline (SSU 7052 advanced installer requires
-    full boot context). It is staged to C:\Updates\ in the WIM and installed
-    on first logon via autounattend.xml FirstLogonCommands.
+    Runs DISM component cleanup to reduce WIM size, then unmounts and commits
+    the image. Run this AFTER Invoke-UpdateIntegration.ps1 completes successfully.
+    All updates including KB5078885 are applied fully offline - no first-boot
+    wusa.exe required.
 
 .NOTES
     - Run from an elevated (Administrator) PowerShell prompt.
@@ -19,37 +16,25 @@
 #>
 
 # -- Paths --------------------------------------------------------------------
-$MountDir   = "V:\RWJBH-Lab\Mount"
-$UpdatesDir = "V:\RWJBH-Lab\ISOs\Win10"
-$LogFile    = "V:\RWJBH-Lab\GitHub\Win10Pro_Build\logs\update-integration.log"
+$MountDir = 'V:\RWJBH-Lab\Mount'
+$LogFile  = 'V:\RWJBH-Lab\GitHub\Win10Pro_Build\logs\update-integration.log'
 
-# KB5078885 MSU — staged into the image for first-logon installation
-$Kb5078885File = "windows10.0-kb5078885-x64_8013483b567f16e057931c30725c6c8723007a31.msu"
-
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 'Stop'
 
 function Write-Log {
-    param([string]$Message, [string]$Level = "INFO")
-    $entry = "[{0}] [{1}] {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Level, $Message
+    param([string]$Message, [string]$Level = 'INFO')
+    $entry = '[{0}] [{1}] {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Level, $Message
     Write-Host $entry
     Add-Content -Path $LogFile -Value $entry
 }
 
-# -- Stage KB5078885 into the image for first-logon installation --------------
-Write-Log "Staging KB5078885 MSU into image at C:\Updates\ ..."
-
-$sourceMsu  = Join-Path $UpdatesDir $Kb5078885File
-$stageDir   = Join-Path $MountDir "Updates"
-
-if (-not (Test-Path $sourceMsu)) {
-    Write-Log "KB5078885 MSU not found at $sourceMsu" "ERROR"
-    exit 1
+# -- Remove legacy C:\Updates\ staging folder if present ---------------------
+$legacyUpdates = Join-Path $MountDir 'Updates'
+if (Test-Path $legacyUpdates) {
+    Write-Log 'Removing legacy C:\Updates\ staging folder from image...'
+    Remove-Item $legacyUpdates -Recurse -Force
+    Write-Log 'Legacy staging folder removed.'
 }
-
-New-Item -ItemType Directory -Force -Path $stageDir | Out-Null
-Copy-Item $sourceMsu $stageDir -Force
-
-Write-Log "KB5078885 staged to $stageDir\$Kb5078885File"
 
 # -- Component cleanup --------------------------------------------------------
 Write-Log "Starting component cleanup (StartComponentCleanup /ResetBase)..."

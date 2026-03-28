@@ -4,52 +4,64 @@
     Integrates cumulative updates into a mounted Windows image using DISM.
 
 .DESCRIPTION
-    Each update entry can use one of two modes:
-    - FullMsu = $false  : Extracts the MSU, applies the SSU CAB first, then the CU CAB.
-                          Used for bridge updates where the SSU needs to be staged before
-                          the CU (e.g. KB5039299).
-    - FullMsu = $true   : Applies the full MSU directly without extraction.
-                          Used when splitting the MSU into CABs corrupts the image
-                          (e.g. KB5078885 after the bridge SSU is already in place).
+    Applies each update by extracting the MSU, applying the SSU CAB first,
+    then the CU CAB. All updates are applied fully offline via DISM.
+    No first-boot wusa.exe required.
+
+    Update chain (base 19045.3803 -> target 19045.7058):
+      KB5039299  2024-06  3803 -> 4598   (bridge 1)
+      KB5050081  2025-01  4598 -> 5440   (bridge 2)
+      KB5063709  2025-08  5440 -> ~5960  (bridge 3, ESU prereq)
+      KB5075912  2026-02  ~5960 -> 6937  (bridge 4)
+      KB5078885  2026-03  6937 -> 7058   (target)
 
 .NOTES
     - The image must already be mounted. Run Step1-ExportAndMount.ps1 first.
     - Run from an elevated (Administrator) PowerShell prompt.
+    - DISM offline does not enforce ESU enrollment - all post-EOL CUs apply normally.
 #>
 
 # -- Paths --------------------------------------------------------------------
 $MountDir   = "V:\RWJBH-Lab\Mount"
 $ScratchDir = "V:\RWJBH-Lab\Scratch"
-$UpdatesDir = "V:\RWJBH-Lab\ISOs\Win10"
+$UpdatesDir = 'V:\RWJBH-Lab\ISOs\Win10\Updates'
 $ExtractDir = "V:\RWJBH-Lab\Scratch\MSU_Extracted"
 $LogFile    = "V:\RWJBH-Lab\GitHub\Win10Pro_Build\logs\update-integration.log"
 
 # -- Updates to integrate (in order) -----------------------------------------
-# SSU ladder bridges from base (3803) to 19045.5440 offline.
-#
-#   KB5039299  CAB    19045.3803 -> 19045.4598  SSU: 3803-era -> 4585
-#   KB5050081  CAB    19045.4598 -> 19045.5440  SSU: 4585 -> 2025-01
-#
-# KB5075912 and KB5078885 are NOT applied offline:
-#   - KB5075912 CU CAB fails with error 14099 after its SSU CAB offline.
-#   - KB5078885 SSU 7052 advanced installer requires full boot context;
-#     ERROR_ADVANCED_INSTALLER_FAILED (0x80073713) every attempt offline.
-#
-# KB5078885 is instead staged into C:\Updates\ in the image by
-# Invoke-CleanupAndUnmount.ps1 and installed on first logon via
-# autounattend.xml FirstLogonCommands. Final installed build: 19045.7058.
 $Updates = @(
     @{
-        KB      = "KB5039299"
-        File    = "windows10.0-kb5039299-x64.msu"
-        Desc    = "2024-06 Cumulative Update Preview for Windows 10 22H2 x64 (bridge 1)"
+        KB      = 'KB5039299'
+        File    = 'windows10.0-kb5039299-x64.msu'
+        Desc    = '2024-06 Cumulative Update for Windows 10 22H2 x64 (bridge 1)'
         FullMsu = $false
         SsuOnly = $false
     },
     @{
-        KB      = "KB5050081"
-        File    = "windows10.0-kb5050081-x64.msu"
-        Desc    = "2025-01 Cumulative Update Preview for Windows 10 22H2 x64 (bridge 2)"
+        KB      = 'KB5050081'
+        File    = 'windows10.0-kb5050081-x64.msu'
+        Desc    = '2025-01 Cumulative Update for Windows 10 22H2 x64 (bridge 2)'
+        FullMsu = $false
+        SsuOnly = $false
+    },
+    @{
+        KB      = 'KB5063709'
+        File    = 'windows10.0-kb5063709-x64.msu'
+        Desc    = '2025-08 Cumulative Update for Windows 10 22H2 x64 (bridge 3)'
+        FullMsu = $false
+        SsuOnly = $false
+    },
+    @{
+        KB      = 'KB5075912'
+        File    = 'windows10.0-kb5075912-x64.msu'
+        Desc    = '2026-02 Cumulative Update for Windows 10 22H2 x64 (bridge 4)'
+        FullMsu = $false
+        SsuOnly = $false
+    },
+    @{
+        KB      = 'KB5078885'
+        File    = 'windows10.0-kb5078885-x64.msu'
+        Desc    = '2026-03 Cumulative Update for Windows 10 22H2 x64 (target - 19045.7058)'
         FullMsu = $false
         SsuOnly = $false
     }
@@ -164,13 +176,14 @@ try {
     $build = (Get-ItemProperty "HKLM:\OFFLINE\Microsoft\Windows NT\CurrentVersion").CurrentBuild
     reg unload "HKLM\OFFLINE" | Out-Null
     Write-Log "OS Build after update: $build.$ubr"
-    if ($ubr -eq 5440) {
-        Write-Log "UBR matches expected value (5440) for KB5039299 + KB5050081. SUCCESS."
-        Write-Log "KB5078885 will be installed on first logon via autounattend.xml FirstLogonCommands."
-    } elseif ($ubr -eq 4598) {
-        Write-Log "UBR is 4598 - only KB5039299 applied. KB5050081 may have failed." "WARN"
+    if ($ubr -eq 7058) {
+        Write-Log "UBR matches expected value (7058) - all updates applied. SUCCESS."
+    } elseif ($ubr -eq 6937) {
+        Write-Log "UBR is 6937 - KB5075912 applied but KB5078885 may have failed." "WARN"
+    } elseif ($ubr -eq 5440) {
+        Write-Log "UBR is 5440 - only KB5039299 + KB5050081 applied. KB5063709 and later may have failed." "WARN"
     } else {
-        Write-Log "UBR is $ubr - expected 5440. Verify updates were applied correctly." "WARN"
+        Write-Log "UBR is $ubr - expected 7058. Verify updates were applied correctly." "WARN"
     }
 } catch {
     Write-Log "Could not read UBR from offline registry: $_" "WARN"
