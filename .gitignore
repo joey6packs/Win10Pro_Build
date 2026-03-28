@@ -1,0 +1,41 @@
+﻿# Large binary files
+*.exe
+*.iso
+*.msi
+*.img
+*.vmdk
+*.wim
+*.esd
+*.vhd
+*.vhdx
+
+# Archives
+*.zip
+*.7z
+*.cab
+*.msu
+
+# VMware files
+*.vmx
+*.nvram
+*.vmsd
+*.vmsn
+*.vmss
+
+# Windows / system
+Thumbs.db
+Desktop.ini
+*.lnk
+*.url
+
+# DISM / build artifacts
+*.clg
+*.tmp
+Scratch/
+Mount/
+
+# Logs (generated at runtime)
+logs/*.log
+
+# Local overrides
+*.local.*
