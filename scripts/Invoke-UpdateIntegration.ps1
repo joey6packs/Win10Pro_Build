@@ -129,7 +129,7 @@ foreach ($update in $Updates) {
         if ($ssuCab) {
             Write-Log "Applying SSU: $($ssuCab.Name)"
             dism /Image:"$MountDir" /Add-Package /PackagePath:"$($ssuCab.FullName)" /ScratchDir:"$ScratchDir"
-            if ($LASTEXITCODE -eq -2146498529) {
+            if ($LASTEXITCODE -eq -2146498529 -or $LASTEXITCODE -eq -2146498512) {
                 Write-Log "SSU already applied or superseded - skipping." "INFO"
             } elseif ($LASTEXITCODE -ne 0) {
                 Write-Log "SSU apply failed with exit code $LASTEXITCODE." "ERROR"
@@ -157,7 +157,7 @@ foreach ($update in $Updates) {
         if ($cuCab) {
             Write-Log "Applying CU CAB: $($cuCab.Name)"
             dism /Image:"$MountDir" /Add-Package /PackagePath:"$($cuCab.FullName)" /ScratchDir:"$ScratchDir"
-            if ($LASTEXITCODE -eq -2146498529) {
+            if ($LASTEXITCODE -eq -2146498529 -or $LASTEXITCODE -eq -2146498512) {
                 Write-Log "$($update.KB) already applied or superseded - skipping." "INFO"
                 continue
             } elseif ($LASTEXITCODE -ne 0) {
@@ -167,7 +167,7 @@ foreach ($update in $Updates) {
         } else {
             Write-Log "No CU CAB found - applying full MSU directly."
             dism /Image:"$MountDir" /Add-Package /PackagePath:"$packagePath" /ScratchDir:"$ScratchDir"
-            if ($LASTEXITCODE -eq -2146498529) {
+            if ($LASTEXITCODE -eq -2146498529 -or $LASTEXITCODE -eq -2146498512) {
                 Write-Log "$($update.KB) already applied or superseded - skipping." "INFO"
                 continue
             } elseif ($LASTEXITCODE -ne 0) {
