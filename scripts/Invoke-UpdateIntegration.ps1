@@ -1,210 +1,185 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Integrates cumulative updates into a mounted Windows image using DISM.
+    Integrates cumulative updates into a Windows image using DISM.
 
 .DESCRIPTION
-    Applies each update by extracting the MSU, applying the SSU CAB first,
-    then the CU CAB. All updates are applied fully offline via DISM.
-    No first-boot wusa.exe required.
+    Applies each update with full session isolation: SSU CAB and CU CAB are
+    applied in separate DISM sessions (unmount/commit/remount between each)
+    to prevent component store corruption errors (14099, 0x800f0830).
 
     Update chain (base 19045.3803 -> target 19045.7058):
       KB5039299  2024-06  3803 -> 4598   (bridge 1)
       KB5050081  2025-01  4598 -> 5440   (bridge 2)
-      KB5063709  2025-08  5440 -> ~5960  (bridge 3, ESU prereq)
-      KB5075912  2026-02  ~5960 -> 6937  (bridge 4)
+      KB5063709  2025-08  5440 -> 6216   (bridge 3)
+      KB5075912  2026-02  6216 -> 6937   (bridge 4)
       KB5078885  2026-03  6937 -> 7058   (target)
 
 .NOTES
-    - The image must already be mounted. Run Step1-ExportAndMount.ps1 first.
+    - Run Step1-ExportAndMount.ps1 first to export and mount the WIM.
     - Run from an elevated (Administrator) PowerShell prompt.
-    - DISM offline does not enforce ESU enrollment - all post-EOL CUs apply normally.
+    - DISM offline does not enforce ESU enrollment - post-EOL CUs apply normally.
+    - Image is left mounted at the end - run Invoke-CleanupAndUnmount.ps1 next.
 #>
 
 # -- Paths --------------------------------------------------------------------
-$MountDir   = "V:\RWJBH-Lab\Mount"
-$ScratchDir = "V:\RWJBH-Lab\Scratch"
+$WimFile    = 'V:\RWJBH-Lab\ISOs\Win10\install_pro.wim'
+$WimIndex   = 1
+$MountDir   = 'V:\RWJBH-Lab\Mount'
+$ScratchDir = 'V:\RWJBH-Lab\Scratch'
 $UpdatesDir = 'V:\RWJBH-Lab\ISOs\Win10\Updates'
-$ExtractDir = "V:\RWJBH-Lab\Scratch\MSU_Extracted"
-$LogFile    = "V:\RWJBH-Lab\GitHub\Win10Pro_Build\logs\update-integration.log"
+$ExtractDir = 'V:\RWJBH-Lab\Scratch\MSU_Extracted'
+$LogFile    = 'V:\RWJBH-Lab\GitHub\Win10Pro_Build\logs\update-integration.log'
+$ExpandExe  = 'C:\Windows\System32\expand.exe'
 
 # -- Updates to integrate (in order) -----------------------------------------
 $Updates = @(
-    @{
-        KB      = 'KB5039299'
-        File    = 'windows10.0-kb5039299-x64.msu'
-        Desc    = '2024-06 Cumulative Update for Windows 10 22H2 x64 (bridge 1)'
-        FullMsu = $false
-        SsuOnly = $false
-    },
-    @{
-        KB      = 'KB5050081'
-        File    = 'windows10.0-kb5050081-x64.msu'
-        Desc    = '2025-01 Cumulative Update for Windows 10 22H2 x64 (bridge 2)'
-        FullMsu = $false
-        SsuOnly = $false
-    },
-    @{
-        KB      = 'KB5063709'
-        File    = 'windows10.0-kb5063709-x64.msu'
-        Desc    = '2025-08 Cumulative Update for Windows 10 22H2 x64 (bridge 3)'
-        FullMsu = $false
-        SsuOnly = $false
-    },
-    @{
-        KB      = 'KB5075912'
-        File    = 'windows10.0-kb5075912-x64.msu'
-        Desc    = '2026-02 Cumulative Update for Windows 10 22H2 x64 (bridge 4)'
-        FullMsu = $true
-        SsuOnly = $false
-    },
-    @{
-        KB      = 'KB5078885'
-        File    = 'windows10.0-kb5078885-x64.msu'
-        Desc    = '2026-03 Cumulative Update for Windows 10 22H2 x64 (target - 19045.7058)'
-        FullMsu = $true
-        SsuOnly = $false
-    }
+    @{ KB = 'KB5039299'; File = 'windows10.0-kb5039299-x64.msu'; Desc = '2024-06 bridge 1 -> 19045.4598' },
+    @{ KB = 'KB5050081'; File = 'windows10.0-kb5050081-x64.msu'; Desc = '2025-01 bridge 2 -> 19045.5440' },
+    @{ KB = 'KB5063709'; File = 'windows10.0-kb5063709-x64.msu'; Desc = '2025-08 bridge 3 -> 19045.6216' },
+    @{ KB = 'KB5075912'; File = 'windows10.0-kb5075912-x64.msu'; Desc = '2026-02 bridge 4 -> 19045.6937' },
+    @{ KB = 'KB5078885'; File = 'windows10.0-kb5078885-x64.msu'; Desc = '2026-03 target  -> 19045.7058' }
 )
 
-# -- Setup --------------------------------------------------------------------
-$ErrorActionPreference = "Stop"
+# Exit codes meaning "already applied or superseded" - skip, do not fail
+# 0x800f081f = source files not found (superseded)
+# 0x800f0830 = image not serviceable (package not applicable at this build)
+$SkipCodes = @(-2146498529, -2146498512)
+
+$ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force -Path (Split-Path $LogFile) | Out-Null
 New-Item -ItemType Directory -Force -Path $ScratchDir | Out-Null
 
 function Write-Log {
-    param([string]$Message, [string]$Level = "INFO")
-    $entry = "[{0}] [{1}] {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Level, $Message
+    param([string]$Message, [string]$Level = 'INFO')
+    $ts    = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    $entry = "[$ts] [$Level] $Message"
     Write-Host $entry
     Add-Content -Path $LogFile -Value $entry
 }
 
-# -- Verify mount -------------------------------------------------------------
-Write-Log "Verifying mounted image at $MountDir"
-if (-not (Test-Path (Join-Path $MountDir "Windows\System32\ntoskrnl.exe"))) {
-    Write-Log "No Windows image found at $MountDir - run Step1-ExportAndMount.ps1 first." "ERROR"
+function Dismount-Commit {
+    Write-Log 'Unmounting and committing image...'
+    dism /Unmount-Image /MountDir:"$MountDir" /Commit
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log "Unmount/Commit failed with exit code $LASTEXITCODE." 'ERROR'
+        exit $LASTEXITCODE
+    }
+    Write-Log 'Unmount complete.'
+}
+
+function Mount-Wim {
+    Write-Log "Mounting $WimFile index $WimIndex..."
+    dism /Mount-Image /ImageFile:"$WimFile" /Index:$WimIndex /MountDir:"$MountDir"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log "Mount failed with exit code $LASTEXITCODE." 'ERROR'
+        exit $LASTEXITCODE
+    }
+    Write-Log 'Mount complete.'
+}
+
+function Invoke-DismPackage {
+    param([string]$PackagePath, [string]$Label)
+    Write-Log "Applying $Label ..."
+    dism /Image:"$MountDir" /Add-Package /PackagePath:"$PackagePath" /ScratchDir:"$ScratchDir"
+    if ($SkipCodes -contains $LASTEXITCODE) {
+        Write-Log "$Label already applied or superseded - skipping." 'INFO'
+    } elseif ($LASTEXITCODE -ne 0) {
+        Write-Log "$Label failed with exit code $LASTEXITCODE." 'ERROR'
+        exit $LASTEXITCODE
+    } else {
+        Write-Log "$Label applied successfully."
+    }
+}
+
+# -- Verify initial mount -----------------------------------------------------
+Write-Log 'Verifying mounted image...'
+if (-not (Test-Path "$MountDir\Windows\System32\ntoskrnl.exe")) {
+    Write-Log "No Windows image at $MountDir - run Step1-ExportAndMount.ps1 first." 'ERROR'
     exit 1
 }
-Write-Log "Mount confirmed."
+Write-Log 'Mount confirmed.'
 
-# -- Apply updates ------------------------------------------------------------
-foreach ($update in $Updates) {
+# -- Apply updates with full session isolation --------------------------------
+# Flow per KB:
+#   Session A: apply SSU CAB -> unmount/commit -> remount
+#   Session B: apply CU CAB  -> unmount/commit -> remount  (skip remount after last KB)
+
+for ($i = 0; $i -lt $Updates.Count; $i++) {
+    $update = $Updates[$i]
+    $isLast = ($i -eq $Updates.Count - 1)
+
     $packagePath = Join-Path $UpdatesDir $update.File
-
     if (-not (Test-Path $packagePath)) {
-        Write-Log "Package not found: $packagePath" "ERROR"
+        Write-Log "Package not found: $packagePath" 'ERROR'
         exit 1
     }
 
-    if ($update.FullMsu) {
-        # -- Full MSU mode: apply directly, no extraction ---------------------
-        Write-Log "Applying $($update.KB) as full MSU - $($update.Desc)"
-        dism /Image:"$MountDir" /Add-Package /PackagePath:"$packagePath" /ScratchDir:"$ScratchDir"
-        if ($LASTEXITCODE -eq -2146498529) {
-            Write-Log "$($update.KB) already applied or superseded - skipping." "INFO"
-            continue
-        } elseif ($LASTEXITCODE -ne 0) {
-            Write-Log "DISM returned exit code $LASTEXITCODE for $($update.KB)." "ERROR"
-            exit $LASTEXITCODE
-        }
-    } else {
-        # -- CAB extraction mode: extract MSU, apply SSU CAB, optionally CU --
-        $kbExtractDir = Join-Path $ExtractDir $update.KB
-        if (Test-Path $kbExtractDir) { Remove-Item $kbExtractDir -Recurse -Force }
-        New-Item -ItemType Directory -Force -Path $kbExtractDir | Out-Null
+    Write-Log "=== $($update.KB): $($update.Desc) ==="
 
-        Write-Log "Extracting $($update.KB) MSU to $kbExtractDir ..."
-        $expandResult = & expand.exe -f:* "$packagePath" "$kbExtractDir" 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            Write-Log "MSU extraction failed: $expandResult" "ERROR"
-            exit 1
-        }
-        Write-Log "Extraction complete."
-
-        # Apply SSU CAB first
-        $ssuCab = Get-ChildItem $kbExtractDir -Filter "*.cab" |
-                  Where-Object { $_.Name -match "SSU|ServicingStack|ssu" } |
-                  Select-Object -First 1
-
-        if ($ssuCab) {
-            Write-Log "Applying SSU: $($ssuCab.Name)"
-            dism /Image:"$MountDir" /Add-Package /PackagePath:"$($ssuCab.FullName)" /ScratchDir:"$ScratchDir"
-            if ($LASTEXITCODE -eq -2146498529 -or $LASTEXITCODE -eq -2146498512) {
-                Write-Log "SSU already applied or superseded - skipping." "INFO"
-            } elseif ($LASTEXITCODE -ne 0) {
-                Write-Log "SSU apply failed with exit code $LASTEXITCODE." "ERROR"
-                exit $LASTEXITCODE
-            } else {
-                Write-Log "SSU applied successfully."
-            }
-        } else {
-            Write-Log "No SSU CAB found in MSU - skipping SSU step." "INFO"
-        }
-
-        # SSU-only mode: skip CU CAB intentionally
-        if ($update.SsuOnly) {
-            Write-Log "$($update.KB) SSU-only mode - CU CAB intentionally skipped."
-            Write-Log "$($update.KB) SSU applied successfully."
-            continue
-        }
-
-        # Apply main CU CAB (largest non-SSU cab)
-        $cuCab = Get-ChildItem $kbExtractDir -Filter "*.cab" |
-                 Where-Object { $_.Name -notmatch "SSU|ServicingStack|ssu" } |
-                 Sort-Object Length -Descending |
-                 Select-Object -First 1
-
-        if ($cuCab) {
-            Write-Log "Applying CU CAB: $($cuCab.Name)"
-            dism /Image:"$MountDir" /Add-Package /PackagePath:"$($cuCab.FullName)" /ScratchDir:"$ScratchDir"
-            if ($LASTEXITCODE -eq -2146498529 -or $LASTEXITCODE -eq -2146498512) {
-                Write-Log "$($update.KB) already applied or superseded - skipping." "INFO"
-                continue
-            } elseif ($LASTEXITCODE -ne 0) {
-                Write-Log "CU CAB apply failed with exit code $LASTEXITCODE." "ERROR"
-                exit $LASTEXITCODE
-            }
-        } else {
-            Write-Log "No CU CAB found - applying full MSU directly."
-            dism /Image:"$MountDir" /Add-Package /PackagePath:"$packagePath" /ScratchDir:"$ScratchDir"
-            if ($LASTEXITCODE -eq -2146498529 -or $LASTEXITCODE -eq -2146498512) {
-                Write-Log "$($update.KB) already applied or superseded - skipping." "INFO"
-                continue
-            } elseif ($LASTEXITCODE -ne 0) {
-                Write-Log "DISM returned exit code $LASTEXITCODE for $($update.KB)." "ERROR"
-                exit $LASTEXITCODE
-            }
-        }
+    # Extract MSU
+    $kbExtractDir = Join-Path $ExtractDir $update.KB
+    if (Test-Path $kbExtractDir) { Remove-Item $kbExtractDir -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path $kbExtractDir | Out-Null
+    Write-Log "Extracting $($update.KB) MSU..."
+    & $ExpandExe -f:* "$packagePath" "$kbExtractDir" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log "MSU extraction failed for $($update.KB)." 'ERROR'
+        exit 1
     }
 
-    Write-Log "$($update.KB) applied successfully."
+    # Find SSU and CU CABs
+    $ssuCab = Get-ChildItem $kbExtractDir -Filter '*.cab' |
+              Where-Object { $_.Name -match 'SSU|ServicingStack' } |
+              Select-Object -First 1
+    $cuCab  = Get-ChildItem $kbExtractDir -Filter '*.cab' |
+              Where-Object { $_.Name -notmatch 'SSU|ServicingStack' } |
+              Sort-Object Length -Descending |
+              Select-Object -First 1
+
+    # Session A: apply SSU CAB in its own session
+    if ($ssuCab) {
+        Invoke-DismPackage -PackagePath $ssuCab.FullName -Label "$($update.KB) SSU ($($ssuCab.Name))"
+        Dismount-Commit
+        Mount-Wim
+    } else {
+        Write-Log "No SSU CAB in $($update.KB) - skipping SSU session." 'INFO'
+    }
+
+    # Session B: apply CU CAB in its own session
+    if ($cuCab) {
+        Invoke-DismPackage -PackagePath $cuCab.FullName -Label "$($update.KB) CU ($($cuCab.Name))"
+    } else {
+        Write-Log "No CU CAB in $($update.KB) - skipping CU." 'WARN'
+    }
+
+    # Between KBs: unmount/commit/remount for clean state
+    # After last KB: leave mounted for Invoke-CleanupAndUnmount.ps1
+    if (-not $isLast) {
+        Dismount-Commit
+        Mount-Wim
+    }
+
+    Write-Log "$($update.KB) complete."
 }
 
-# -- Verify UBR from offline registry ----------------------------------------
-Write-Log "Verifying Update Build Revision (UBR) from offline registry..."
+# -- Verify UBR ---------------------------------------------------------------
+Write-Log 'Verifying UBR from offline registry...'
 try {
-    reg load "HKLM\OFFLINE" "$MountDir\Windows\System32\config\SOFTWARE" | Out-Null
-    $ubr   = (Get-ItemProperty "HKLM:\OFFLINE\Microsoft\Windows NT\CurrentVersion").UBR
-    $build = (Get-ItemProperty "HKLM:\OFFLINE\Microsoft\Windows NT\CurrentVersion").CurrentBuild
-    reg unload "HKLM\OFFLINE" | Out-Null
-    Write-Log "OS Build after update: $build.$ubr"
+    reg load 'HKLM\OFFLINE' "$MountDir\Windows\System32\config\SOFTWARE" | Out-Null
+    $ubr   = (Get-ItemProperty 'HKLM:\OFFLINE\Microsoft\Windows NT\CurrentVersion').UBR
+    $build = (Get-ItemProperty 'HKLM:\OFFLINE\Microsoft\Windows NT\CurrentVersion').CurrentBuild
+    reg unload 'HKLM\OFFLINE' | Out-Null
+    Write-Log "OS Build after updates: $build.$ubr"
     if ($ubr -eq 7058) {
-        Write-Log "UBR matches expected value (7058) - all updates applied. SUCCESS."
-    } elseif ($ubr -eq 6937) {
-        Write-Log "UBR is 6937 - KB5075912 applied but KB5078885 may have failed." "WARN"
-    } elseif ($ubr -eq 5440) {
-        Write-Log "UBR is 5440 - only KB5039299 + KB5050081 applied. KB5063709 and later may have failed." "WARN"
+        Write-Log 'SUCCESS - target build 19045.7058 reached. Run Invoke-CleanupAndUnmount.ps1 next.'
     } else {
-        Write-Log "UBR is $ubr - expected 7058. Verify updates were applied correctly." "WARN"
+        Write-Log "UBR is $ubr - expected 7058. Review log for errors." 'WARN'
     }
 } catch {
-    Write-Log "Could not read UBR from offline registry: $_" "WARN"
-    reg unload "HKLM\OFFLINE" 2>$null
+    Write-Log "Could not read UBR from offline registry: $_" 'WARN'
+    reg unload 'HKLM\OFFLINE' 2>$null
 }
 
-# -- List integrated packages -------------------------------------------------
-Write-Log "Listing all integrated packages (appended to log)..."
-dism /Image:"$MountDir" /Get-Packages >> $LogFile
-
-Write-Log "Update integration complete. Review log at: $LogFile"
-Write-Log "Next step: run Invoke-CleanupAndUnmount.ps1 - see docs/build-process.md Step 8."
+Write-Log 'Update integration complete. Image is still mounted.'
+Write-Log 'Next step: run Invoke-CleanupAndUnmount.ps1'
