@@ -98,7 +98,7 @@
         <AcceptEula>true</AcceptEula>
         <ProductKey>
           <Key>CHANGEME</Key>
-          <WillShowUI>Never</WillShowUI>
+          <WillShowUI>OnError</WillShowUI>
         </ProductKey>
       </UserData>
 
