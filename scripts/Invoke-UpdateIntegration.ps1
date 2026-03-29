@@ -55,14 +55,14 @@ $Updates = @(
         KB      = 'KB5075912'
         File    = 'windows10.0-kb5075912-x64.msu'
         Desc    = '2026-02 Cumulative Update for Windows 10 22H2 x64 (bridge 4)'
-        FullMsu = $false
+        FullMsu = $true
         SsuOnly = $false
     },
     @{
         KB      = 'KB5078885'
         File    = 'windows10.0-kb5078885-x64.msu'
         Desc    = '2026-03 Cumulative Update for Windows 10 22H2 x64 (target - 19045.7058)'
-        FullMsu = $false
+        FullMsu = $true
         SsuOnly = $false
     }
 )
@@ -100,7 +100,10 @@ foreach ($update in $Updates) {
         # -- Full MSU mode: apply directly, no extraction ---------------------
         Write-Log "Applying $($update.KB) as full MSU - $($update.Desc)"
         dism /Image:"$MountDir" /Add-Package /PackagePath:"$packagePath" /ScratchDir:"$ScratchDir"
-        if ($LASTEXITCODE -ne 0) {
+        if ($LASTEXITCODE -eq -2146498529) {
+            Write-Log "$($update.KB) already applied or superseded - skipping." "INFO"
+            continue
+        } elseif ($LASTEXITCODE -ne 0) {
             Write-Log "DISM returned exit code $LASTEXITCODE for $($update.KB)." "ERROR"
             exit $LASTEXITCODE
         }
