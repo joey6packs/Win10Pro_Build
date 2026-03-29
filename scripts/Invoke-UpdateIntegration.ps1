@@ -126,11 +126,14 @@ foreach ($update in $Updates) {
         if ($ssuCab) {
             Write-Log "Applying SSU: $($ssuCab.Name)"
             dism /Image:"$MountDir" /Add-Package /PackagePath:"$($ssuCab.FullName)" /ScratchDir:"$ScratchDir"
-            if ($LASTEXITCODE -ne 0) {
+            if ($LASTEXITCODE -eq -2146498529) {
+                Write-Log "SSU already applied or superseded - skipping." "INFO"
+            } elseif ($LASTEXITCODE -ne 0) {
                 Write-Log "SSU apply failed with exit code $LASTEXITCODE." "ERROR"
                 exit $LASTEXITCODE
+            } else {
+                Write-Log "SSU applied successfully."
             }
-            Write-Log "SSU applied successfully."
         } else {
             Write-Log "No SSU CAB found in MSU - skipping SSU step." "INFO"
         }
@@ -151,14 +154,20 @@ foreach ($update in $Updates) {
         if ($cuCab) {
             Write-Log "Applying CU CAB: $($cuCab.Name)"
             dism /Image:"$MountDir" /Add-Package /PackagePath:"$($cuCab.FullName)" /ScratchDir:"$ScratchDir"
-            if ($LASTEXITCODE -ne 0) {
+            if ($LASTEXITCODE -eq -2146498529) {
+                Write-Log "$($update.KB) already applied or superseded - skipping." "INFO"
+                continue
+            } elseif ($LASTEXITCODE -ne 0) {
                 Write-Log "CU CAB apply failed with exit code $LASTEXITCODE." "ERROR"
                 exit $LASTEXITCODE
             }
         } else {
             Write-Log "No CU CAB found - applying full MSU directly."
             dism /Image:"$MountDir" /Add-Package /PackagePath:"$packagePath" /ScratchDir:"$ScratchDir"
-            if ($LASTEXITCODE -ne 0) {
+            if ($LASTEXITCODE -eq -2146498529) {
+                Write-Log "$($update.KB) already applied or superseded - skipping." "INFO"
+                continue
+            } elseif ($LASTEXITCODE -ne 0) {
                 Write-Log "DISM returned exit code $LASTEXITCODE for $($update.KB)." "ERROR"
                 exit $LASTEXITCODE
             }
