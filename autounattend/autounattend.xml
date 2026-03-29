@@ -179,31 +179,6 @@
         </Password>
       </AutoLogon>
 
-      <!--
-          FirstLogonCommands — runs on first logon as LocalAdmin (Administrators group).
-
-          Order 1: Install KB5078885 (2026-03 Cumulative Update, 19045.5440 -> 19045.7058)
-                   Source: C:\Updates\ — staged into the image by Invoke-CleanupAndUnmount.ps1
-                   wusa.exe /quiet is synchronous in this context; /norestart defers reboot.
-                   Log written to C:\Windows\Logs\Setup\KB5078885-install.log
-
-          Order 2: Restart 30 seconds after wusa completes to finalize the update.
-      -->
-      <FirstLogonCommands>
-        <SynchronousCommand wcm:action="add">
-          <Order>1</Order>
-          <CommandLine>wusa.exe "C:\Updates\windows10.0-kb5078885-x64_8013483b567f16e057931c30725c6c8723007a31.msu" /quiet /norestart /log:"C:\Windows\Logs\Setup\KB5078885-install.log"</CommandLine>
-          <Description>Install KB5078885 - 2026-03 Cumulative Update for Windows 10 22H2</Description>
-          <RequiresUserInput>false</RequiresUserInput>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>2</Order>
-          <CommandLine>shutdown.exe /r /t 30 /c "Completing KB5078885 installation"</CommandLine>
-          <Description>Restart to complete update installation</Description>
-          <RequiresUserInput>false</RequiresUserInput>
-        </SynchronousCommand>
-      </FirstLogonCommands>
-
     </component>
   </settings>
 
