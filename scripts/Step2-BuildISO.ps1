@@ -19,6 +19,7 @@
 # -- Paths --------------------------------------------------------------------
 $SourceX64    = 'E:\x64'
 $WimFile      = 'V:\RWJBH-Lab\ISOs\Win10\install_pro.wim'
+$BootWim      = 'V:\RWJBH-Lab\ISOs\Win10\boot_work.wim'
 $StageDir     = 'V:\RWJBH-Lab\ISOs\Win10\ISO_Stage'
 $Autounattend = 'V:\RWJBH-Lab\GitHub\Win10Pro_Build\autounattend\autounattend.xml'
 $OutputISO    = 'V:\RWJBH-Lab\ISOs\Win10Pro_22H2_19045.7058.iso'
@@ -63,6 +64,15 @@ New-Item -ItemType Directory -Force -Path $StageDir | Out-Null
 
 robocopy $SourceX64 $StageDir /E /NFL /NDL /NJH /NJS
 Write-Log 'Staging copy complete.'
+
+# -- Replace boot.wim with updated version (SSU-patched for compatibility) ----
+if (Test-Path $BootWim) {
+    Write-Log "Replacing boot.wim with updated version from $BootWim ..."
+    Copy-Item $BootWim (Join-Path $StageDir 'sources\boot.wim') -Force
+    Write-Log 'boot.wim replaced.'
+} else {
+    Write-Log 'No updated boot.wim found - using source boot.wim.' 'WARN'
+}
 
 # -- Replace install.esd with our updated WIM ---------------------------------
 $stagedEsd = Join-Path $StageDir 'sources\install.esd'
