@@ -12,8 +12,8 @@
       KB5039299  2024-06  3803 -> 4598   (bridge 1)
       KB5050081  2025-01  4598 -> 5440   (bridge 2)
       KB5063709  2025-08  5440 -> 6216   (bridge 3)
-      KB5075912  2026-02  6216 -> 6937   (bridge 4)
-      KB5078885  2026-03  6937 -> 7058   (target)
+      KB5075912  2026-02  SSU-6935 only  (CU omitted - causes CBS damage via 14099)
+      KB5078885  2026-03  6216 -> 7058   (target, cumulative over KB5075912)
 
 .NOTES
     - Run Step1-ExportAndMount.ps1 first to export and mount the WIM.
@@ -37,8 +37,13 @@ $Updates = @(
     @{ KB = 'KB5039299'; File = 'windows10.0-kb5039299-x64.msu'; Desc = '2024-06 bridge 1 -> 19045.4598' },
     @{ KB = 'KB5050081'; File = 'windows10.0-kb5050081-x64.msu'; Desc = '2025-01 bridge 2 -> 19045.5440' },
     @{ KB = 'KB5063709'; File = 'windows10.0-kb5063709-x64.msu'; Desc = '2025-08 bridge 3 -> 19045.6216' },
-    @{ KB = 'KB5075912'; File = 'windows10.0-kb5075912-x64.msu'; Desc = '2026-02 bridge 4 -> 19045.6937' },
-    @{ KB = 'KB5078885'; File = 'windows10.0-kb5078885-x64.msu'; Desc = '2026-03 target  -> 19045.7058' }
+    # KB5075912 CU intentionally omitted: applying it offline causes a 14099 SXS transaction error
+    # that permanently damages the CBS component store (0x800f0830 on all subsequent packages).
+    # Its SSU (SSU-19041.6935) is applied here; the CU content is superseded by KB5078885.
+    @{ KB = 'KB5075912'; File = 'windows10.0-kb5075912-x64.msu'; Desc = '2026-02 SSU-6935 only (CU skipped)'; SkipCU = $true },
+    # KB5078885: apply MSU directly - CAB extraction causes CBS to re-process the embedded SSU (KB5081263/7052)
+    # which conflicts with the separately applied SSU CAB, triggering 0x80073713 ERROR_ADVANCED_INSTALLER_FAILED.
+    @{ KB = 'KB5078885'; File = 'windows10.0-kb5078885-x64.msu'; Desc = '2026-03 target  -> 19045.7058'; UseMSU = $true }
 )
 
 # Exit codes meaning "already applied or superseded" - skip, do not fail
@@ -117,6 +122,27 @@ for ($i = 0; $i -lt $Updates.Count; $i++) {
 
     Write-Log "=== $($update.KB): $($update.Desc) ==="
 
+    # UseMSU: apply the .msu directly - bypasses CAB extraction to avoid CBS re-processing
+    # the embedded SSU as a dependency inside the CU, which triggers 0x80073713.
+    if ($update.UseMSU) {
+        Write-Log "Applying $($update.KB) MSU directly (bypassing CAB extraction)..."
+        dism /Image:"$MountDir" /Add-Package /PackagePath:"$packagePath" /ScratchDir:"$ScratchDir"
+        if ($SkipCodes -contains $LASTEXITCODE) {
+            Write-Log "$($update.KB) already applied or superseded - skipping." 'INFO'
+        } elseif ($LASTEXITCODE -ne 0) {
+            Write-Log "$($update.KB) MSU apply failed with exit code $LASTEXITCODE." 'ERROR'
+            exit $LASTEXITCODE
+        } else {
+            Write-Log "$($update.KB) MSU applied successfully."
+        }
+        if (-not $isLast) {
+            Dismount-Commit
+            Mount-Wim
+        }
+        Write-Log "$($update.KB) complete."
+        continue
+    }
+
     # Extract MSU
     $kbExtractDir = Join-Path $ExtractDir $update.KB
     if (Test-Path $kbExtractDir) { Remove-Item $kbExtractDir -Recurse -Force }
@@ -146,8 +172,10 @@ for ($i = 0; $i -lt $Updates.Count; $i++) {
         Write-Log "No SSU CAB in $($update.KB) - skipping SSU session." 'INFO'
     }
 
-    # Session B: apply CU CAB in its own session
-    if ($cuCab) {
+    # Session B: apply CU CAB in its own session (unless SkipCU is set)
+    if ($update.SkipCU) {
+        Write-Log "$($update.KB) CU intentionally skipped - SSU-only update." 'INFO'
+    } elseif ($cuCab) {
         Invoke-DismPackage -PackagePath $cuCab.FullName -Label "$($update.KB) CU ($($cuCab.Name))"
     } else {
         Write-Log "No CU CAB in $($update.KB) - skipping CU." 'WARN'
