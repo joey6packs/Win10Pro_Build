@@ -17,6 +17,30 @@ Each entry records:
 
 ## Revisions
 
+### v0.6 — 2026-03-30
+
+| Field | Value |
+|---|---|
+| Final Build | 19045.6216 (locked) |
+| Updates Offline | KB5039299, KB5050081, KB5063709 |
+| KB5078885 Status | **Permanently blocked — ESU licensing required** |
+| Output ISO | Win10Pro_22H2_19045.6216.iso |
+
+**Notes:**
+- KB5078885 (Mar 2026 CU) confirmed blocked via all delivery paths:
+  - `wusa.exe` via FirstLogonCommands → ESU AI installer rolls back
+  - `dism /online /add-package` → stages successfully, AI installer fires on boot and rolls back
+- Root cause: `ExtendedSecurityUpdatesAI.dll` (CBS advanced installer) checks for ESU consumer
+  license and falls back to Azure IMDS (`169.254.169.254`). Both checks fail on non-licensed,
+  non-Azure machines. Error: `80072efd / CBS_E_INSTALLERS_FAILED`.
+- All post-Oct 2025 updates for Win10 22H2 carry this ESU enforcement component.
+- **19045.6216 is the maximum build achievable without an ESU MAK key or Azure Arc enrollment.**
+- KB5078885 staged ISO (`Win10Pro_22H2_19045.6216_KB5078885staged.iso`) retired — 6216 clean ISO
+  is the definitive deliverable.
+- Next phase: app pre-installation.
+
+---
+
 ### v0.5 — 2026-03-30
 
 | Field | Value |

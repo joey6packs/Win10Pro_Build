@@ -6,10 +6,11 @@ Custom Windows 10 Professional 22H2 image with slipstreamed cumulative updates a
 |---|---|
 | Base OS | Windows 10 Pro 22H2 |
 | Base Build | 19045.3803 |
-| Current Build (post-updates) | 19045.7058 (pending) |
+| Current Build (final) | 19045.6216 |
 | Bridge CU 1 | KB5039299 (2024-06-25) → 19045.4598 (offline) |
 | Bridge CU 2 | KB5050081 (2025-01-28) → 19045.5440 (offline) |
-| Target CU | KB5078885 (2026-03-10) → 19045.7058 (first logon) |
+| Bridge CU 3 | KB5063709 (2025-08-12) → 19045.6216 (offline) |
+| KB5078885 (Mar 2026) | Blocked — ESU licensing required (see docs/updates.md) |
 | Architecture | x64 |
 | Update Channel | General Availability |
 

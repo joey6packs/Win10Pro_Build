@@ -9,9 +9,9 @@ Tracking all updates integrated into the image, with download sources and integr
 | Item | Value |
 |---|---|
 | Base ISO Build | 19045.3803 |
-| Last Confirmed Working (offline) | 19045.6216 + SSU-6935 (KB5075912) |
-| Target Build | 19045.7058 (KB5078885 — integration under investigation) |
-| Last Updated | 2026-03-29 |
+| Final Build | 19045.6216 |
+| KB5078885 (Mar 2026) | Blocked — ESU licensing required |
+| Last Updated | 2026-03-30 |
 
 ---
 
@@ -135,12 +135,16 @@ to a corrupted installation file."
 CAB extraction path additionally triggers `0x80073713` (`ERROR_ADVANCED_INSTALLER_FAILED`)
 when the embedded SSU (KB5081263/SSU-7052) conflicts with the already-applied SSU-6935.
 
-**Remediation paths under investigation:**
+**Resolution — all paths blocked:**
 
-| Option | Approach | Script |
-|---|---|---|
-| Option 1 | Install from 6935 ISO → apply KB5078885 online → sysprep → capture WIM | Manual |
-| Option 2 | Apply KB5078885 directly after 6216, no KB5075912 SSU pre-step | `Step3-BuildIncrementalISOs.ps1 -TargetBuild 7058direct` |
+| Path | Result |
+|---|---|
+| `wusa.exe` via FirstLogonCommands | `ExtendedSecurityUpdatesAI.dll` fails ESU license check → rollback |
+| `dism /online /add-package` (CAB) | Stages successfully, AI installer fires on boot → rollback |
+| DISM offline (MSU / CAB) | CBS error 14099 / 0x800f0830 |
+
+**Conclusion:** KB5078885 and all post-Oct 2025 Win10 22H2 updates require either an ESU MAK key
+(Volume Licensing) or Azure Arc enrollment. Without these, 19045.6216 is the maximum achievable build.
 
 ---
 

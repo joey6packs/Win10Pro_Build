@@ -88,19 +88,16 @@ dism /Mount-Image /ImageFile:"V:\Lab\ISOs\Win10\install.wim" `
 
 See [updates.md](updates.md) for the full update list and per-KB notes.
 
-KB5078885 (Mar 2026 CU, 19045.7058) **cannot be applied offline** — its SSU 7052 advanced
-installer requires full boot context. Instead:
-
-- **Offline (WIM):** KB5039299 + KB5050081 → leaves image at 19045.5440
-- **First logon:** KB5078885 installed via `autounattend.xml` `FirstLogonCommands` → final build 19045.7058
+Offline updates advance the image to **19045.6216** (final build). KB5078885 and all
+post-Oct 2025 updates are ESU-gated and cannot be installed without an ESU MAK key or
+Azure Arc enrollment. See [updates.md](updates.md) for full details.
 
 ```powershell
-# Run the update integration script (applies KB5039299 + KB5050081 offline)
+# Run the update integration script (applies KB5039299 + KB5050081 + KB5063709 offline)
 scripts\Invoke-UpdateIntegration.ps1
 ```
 
-The script expects the image already mounted. It stops at 19045.5440 and reports SUCCESS.
-KB5078885 is staged into the image in Step 8 (Invoke-CleanupAndUnmount.ps1).
+The script expects the image already mounted. It stops at 19045.6216 and reports SUCCESS.
 
 Verify integrated packages:
 ```powershell
@@ -142,18 +139,17 @@ Copy-Item "V:\Lab\GitHub\Win10Pro_Build\autounattend\autounattend.xml" `
 
 ---
 
-## Step 8 — Stage KB5078885, Clean Up, and Unmount
+## Step 8 — Clean Up and Unmount
 
 `Invoke-CleanupAndUnmount.ps1` does the following in order:
-1. Copies KB5078885.msu from `V:\Lab\ISOs\Win10\` into `C:\Updates\` in the mounted WIM
-2. Runs `dism /Cleanup-Image /StartComponentCleanup /ResetBase` to reduce WIM size
-3. Unmounts and commits the image
+1. Runs `dism /Cleanup-Image /StartComponentCleanup /ResetBase` to reduce WIM size
+2. Unmounts and commits the image
 
 ```powershell
 scripts\Invoke-CleanupAndUnmount.ps1
 ```
 
-> Run as Administrator. KB5078885.msu must be present in `V:\Lab\ISOs\Win10\` before running.
+> Run as Administrator.
 
 ---
 
