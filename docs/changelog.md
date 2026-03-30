@@ -49,7 +49,6 @@ Each entry records:
   (`/IMAGE/INDEX = 1`), `WillShowUI OnError` for ProductKey. No FirstLogonCommands.
 - `boot.wim` patched with SSU-6935 from KB5075912 to resolve WinPE version mismatch
   against a 7058-level install image.
-- All path references updated from `V:\RWJBH-Lab\` to `V:\Lab\`.
 - `Step3-BuildIncrementalISOs.ps1` now accepts `-TargetBuild` parameter with tab-complete.
 
 ---
