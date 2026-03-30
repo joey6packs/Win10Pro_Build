@@ -9,50 +9,48 @@ Tracking all updates integrated into the image, with download sources and integr
 | Item | Value |
 |---|---|
 | Base ISO Build | 19045.3803 |
-| Offline Build (WIM) | 19045.5440 |
-| Final Installed Build | 19045.7058 (after first-logon KB5078885) |
-| Last Updated | 2026-03-28 |
+| Last Confirmed Working (offline) | 19045.6216 + SSU-6935 (KB5075912) |
+| Target Build | 19045.7058 (KB5078885 — integration under investigation) |
+| Last Updated | 2026-03-29 |
 
 ---
 
-## Update Strategy Note
+## Update Strategy
 
-The base ISO (19045.3803, Dec 2023) has a servicing stack too old to accept the March 2026 CU directly. Additionally, the ESU-era SSU (7052) bundled in KB5078885 requires full boot context and cannot be applied by DISM offline.
+The base ISO (19045.3803, Dec 2023) requires a chain of bridge updates to advance the
+servicing stack before the March 2026 CU can be applied offline.
 
-**Strategy: offline bridges to 19045.5440, then KB5078885 on first logon.**
+| Step | KB | Method | Build After | Status |
+|---|---|---|---|---|
+| 1 | KB5039299 (Jun 2024) | DISM offline — SSU+CU CAB, session-isolated | 19045.4598 | Confirmed working |
+| 2 | KB5050081 (Jan 2025) | DISM offline — SSU+CU CAB, session-isolated | 19045.5440 | Confirmed working |
+| 3 | KB5063709 (Aug 2025) | DISM offline — SSU+CU CAB, session-isolated | 19045.6216 | Confirmed working |
+| 4 | KB5075912 (Feb 2026) | DISM offline — SSU CAB only (CU intentionally skipped) | SSU-6935 applied; OS UBR stays 6216 | Confirmed working |
+| 5 | KB5078885 (Mar 2026) | Under investigation — see KB5078885 section | 19045.7058 | Setup fails from ISO |
 
-| Step | KB | Method | Result |
-|---|---|---|---|
-| 1 | KB5039299 (Jun 2024 preview) | DISM offline (CAB extraction) | 19045.3803 → 19045.4598 |
-| 2 | KB5050081 (Jan 2025 preview) | DISM offline (CAB extraction) | 19045.4598 → 19045.5440 |
-| 3 | KB5078885 (Mar 2026) | `wusa.exe` via `FirstLogonCommands` | 19045.5440 → 19045.7058 |
-
-KB5075912 (Feb 2026, bridge 3) was attempted offline — SSU CAB applied but CU CAB fails with error 14099. Skipped; KB5078885 can be installed directly from 5440 via online wusa.
-
-> Most 2024 Patch Tuesday CUs (KB5044273, KB5043064, KB5040427, etc.) have been pulled from
-> the Microsoft Update Catalog as superseded. KB5039299 is the most recent 2024 build still
-> available for direct download.
+**Session isolation:** each SSU and CU CAB is applied in a separate DISM mount/commit
+session to prevent CBS component store corruption (errors 14099, 0x800f0830).
 
 ---
 
 ## Integrated Updates
 
-### KB5039299 — 2024-06 Cumulative Update Preview (bridge)
+### KB5039299 — 2024-06 Cumulative Update Preview (bridge 1)
 
 | Field | Value |
 |---|---|
-| Full Title | 2024-06 Cumulative Update Preview for Windows 10 Version 22H2 for x64-based Systems (KB5039299) |
+| Full Title | 2024-06 Cumulative Update Preview for Windows 10 Version 22H2 for x64-based Systems |
 | Type | Cumulative Update Preview (optional/non-security) |
 | Release Date | 2024-06-25 |
 | OS Build After | 19045.4598 |
 | Catalog URL | https://www.catalog.update.microsoft.com/Search.aspx?q=KB5039299 |
-| Purpose | Bridge the servicing stack from 19045.3803 base to a level compatible with KB5078885 |
-| Note | KB5044273 (Oct 2024) and other 2024 CUs have been pulled from the catalog as superseded. KB5039299 is the most recent 2024 update still available for download. |
+| Purpose | Advances servicing stack from 3803 base to a level compatible with later CUs |
+| Note | Most 2024 Patch Tuesday CUs (KB5044273, KB5043064, etc.) have been pulled from the catalog as superseded. KB5039299 is the latest 2024 update still available for direct download. |
 
 **Integration command:**
 ```powershell
 dism /Image:"V:\Lab\Mount" /Add-Package `
-     /PackagePath:"V:\Lab\ISOs\Win10\windows10.0-kb5039299-x64.msu" `
+     /PackagePath:"V:\Lab\ISOs\Win10\Updates\windows10.0-kb5039299-x64.msu" `
      /ScratchDir:"V:\Lab\Scratch"
 ```
 
@@ -62,90 +60,116 @@ dism /Image:"V:\Lab\Mount" /Add-Package `
 
 | Field | Value |
 |---|---|
-| Full Title | 2025-01 Cumulative Update Preview for Windows 10 Version 22H2 for x64-based Systems (KB5050081) |
+| Full Title | 2025-01 Cumulative Update Preview for Windows 10 Version 22H2 for x64-based Systems |
 | Type | Cumulative Update Preview (optional/non-security) |
 | Release Date | 2025-01-28 |
 | OS Build After | 19045.5440 |
 | Catalog URL | https://www.catalog.update.microsoft.com/Search.aspx?q=KB5050081 |
-| Purpose | Bridge 2: advances the SSU from the 4585 level (KB5039299) into mid-2025 range before applying the March 2026 CU |
+| Purpose | Bridge 2: advances servicing stack from 4598 level into mid-2025 range |
 
 ---
 
-### KB5075912 — 2026-02 Cumulative Update (bridge 3)
+### KB5063709 — 2025-08 Cumulative Update (bridge 3)
 
 | Field | Value |
 |---|---|
-| Full Title | 2026-02 Cumulative Update for Windows 10 Version 22H2 for x64-based Systems (KB5075912) |
+| Full Title | 2025-08 Cumulative Update for Windows 10 Version 22H2 for x64-based Systems |
+| Type | Cumulative Update (LCU) |
+| Release Date | 2025-08-12 |
+| OS Build After | 19045.6216 |
+| Catalog URL | https://www.catalog.update.microsoft.com/Search.aspx?q=KB5063709 |
+| Purpose | Bridge 3: advances servicing stack from 5440 into Aug 2025 range; final confirmed clean offline step |
+
+---
+
+### KB5075912 — 2026-02 Cumulative Update (SSU only applied)
+
+| Field | Value |
+|---|---|
+| Full Title | 2026-02 Cumulative Update for Windows 10 Version 22H2 for x64-based Systems |
 | Type | Cumulative Update (LCU) |
 | Release Date | 2026-02-10 |
-| OS Build After | 19045.6937 |
+| OS Build After | 19045.6937 (CU); SSU-19041.6935 (SSU component only) |
 | Catalog URL | https://www.catalog.update.microsoft.com/Search.aspx?q=KB5075912 |
-| Purpose | Bridge 3: advances the SSU from the KB5050081 level into Feb 2026, one step before the final CU |
+| Purpose | Apply SSU-6935 to advance servicing stack before KB5078885 |
+
+**Important — CU intentionally skipped:**
+Applying the KB5075912 CU CAB offline triggers CBS error 14099
+(`CBS_E_ARRAY_ELEMENT_MISSING`) which permanently corrupts the component store
+(`0x800f0830` on all subsequent packages). Only the SSU CAB is applied. The CU content
+is superseded by KB5078885 anyway.
+
+The SSU does not change the OS UBR — `winver` will still show 19045.6216 after this step.
+
+**boot.wim:** SSU-6935 is also applied to boot.wim index 2 (WinPE setup environment) to
+resolve a version mismatch when setup.exe from a 3803-era WinPE tries to install a
+7058-level image.
 
 ---
 
-### KB5078885 — 2026-03 Cumulative Update
+### KB5078885 — 2026-03 Cumulative Update (investigation ongoing)
 
 | Field | Value |
 |---|---|
-| Full Title | 2026-03 Cumulative Update for Windows 10 Version 22H2 for x64-based Systems (KB5078885) |
-| Type | Cumulative Update (LCU) |
+| Full Title | 2026-03 Cumulative Update for Windows 10 Version 22H2 for x64-based Systems |
+| Type | Cumulative Update (LCU) — ESU |
 | Release Date | 2026-03-10 |
 | OS Build After | 19045.7058 |
 | File Size (x64) | ~846 MB |
-| SSU Prerequisite | None — SSU bundled in this CU |
 | Catalog URL | https://www.catalog.update.microsoft.com/Search.aspx?q=KB5078885 |
 | Support Article | https://support.microsoft.com/en-us/topic/march-10-2026-kb5078885-os-builds-19045-7058-and-19044-7058-5738282d-0b7f-426e-a42b-bd7698ab6dbb |
 
 **Key fixes / changes:**
 - GPU stability fix affecting system stability
-- Includes updated Secure Boot 2023 certificates (older certificates expire June 2026)
+- Updated Secure Boot 2023 certificates (older certificates expire June 2026)
 - Addresses 78 CVEs (March 2026 Patch Tuesday)
+- ESU update — requires ESU enrollment for Windows Update delivery; MSU installs locally
 
-**Download:**
-1. Go to the [Microsoft Update Catalog](https://www.catalog.update.microsoft.com/Search.aspx?q=KB5078885)
-2. Select: **Windows 10 Version 22H2 for x64-based Systems**
-3. Download the `.msu` file
+**Known offline integration issue:**
+DISM offline apply of KB5078885 (both MSU direct and CAB extraction paths) exits with
+error 14099 (`CBS_E_ARRAY_ELEMENT_MISSING`). The OS binaries reach build 7058
+(ntoskrnl.exe verified) but CBS metadata is inconsistent. WIM export does not resolve
+this. Setup.exe detects the inconsistency and aborts with "Setup cannot continue due
+to a corrupted installation file."
 
-**Integration command:**
-```powershell
-dism /Image:"C:\WinBuild\Mount" /Add-Package `
-     /PackagePath:"C:\WinBuild\Updates\windows10.0-kb5078885-x64.msu" `
-     /ScratchDir:"C:\WinBuild\Scratch"
-```
+CAB extraction path additionally triggers `0x80073713` (`ERROR_ADVANCED_INSTALLER_FAILED`)
+when the embedded SSU (KB5081263/SSU-7052) conflicts with the already-applied SSU-6935.
+
+**Remediation paths under investigation:**
+
+| Option | Approach | Script |
+|---|---|---|
+| Option 1 | Install from 6935 ISO → apply KB5078885 online → sysprep → capture WIM | Manual |
+| Option 2 | Apply KB5078885 directly after 6216, no KB5075912 SSU pre-step | `Step3-BuildIncrementalISOs.ps1 -TargetBuild 7058direct` |
 
 ---
 
 ## Update Integration Order
 
-When multiple updates are present, apply in this order:
+When multiple updates are present, always apply in this order:
 
-1. **Servicing Stack Update (SSU)** — if required separately
-2. **Cumulative Update (LCU)** — monthly rollup
+1. **Servicing Stack Update (SSU)** — in its own DISM mount/commit session
+2. **Cumulative Update (LCU)** — in a separate mount/commit session
 3. **Out-of-band / optional updates** — as needed
 
-For this build, only one update is required (KB5078885 includes the SSU).
+Session isolation (unmount/commit/remount between SSU and CU) is required to prevent
+CBS component store corruption.
 
 ---
 
 ## Verifying Integration
 
-After unmounting the image, confirm the build number:
+After unmounting the image, confirm the build number via the offline registry:
 
 ```powershell
-dism /Get-WimInfo /WimFile:"C:\WinBuild\ISO\sources\install.wim" /Index:<Pro_Index>
-```
-
-Look for `ServicePack Build` or check the build in the mounted image registry:
-
-```powershell
-# While image is mounted:
-reg load HKLM\OFFLINE "C:\WinBuild\Mount\Windows\System32\config\SOFTWARE"
-reg query "HKLM\OFFLINE\Microsoft\Windows NT\CurrentVersion" /v "UBR"
+reg load HKLM\OFFLINE "V:\Lab\Mount\Windows\System32\config\SOFTWARE"
+$ubr   = (Get-ItemProperty 'HKLM:\OFFLINE\Microsoft\Windows NT\CurrentVersion').UBR
+$build = (Get-ItemProperty 'HKLM:\OFFLINE\Microsoft\Windows NT\CurrentVersion').CurrentBuild
 reg unload HKLM\OFFLINE
+Write-Host "Build: $build.$ubr"
 ```
 
-The `UBR` (Update Build Revision) value should be **7058** after KB5078885 is applied.
+The `UBR` value should be **7058** after KB5078885 is successfully applied.
 
 ---
 
