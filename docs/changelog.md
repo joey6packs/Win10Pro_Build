@@ -17,6 +17,30 @@ Each entry records:
 
 ## Revisions
 
+### v0.5 — 2026-03-30
+
+| Field | Value |
+|---|---|
+| Base Build | 19045.3803 (22H2) |
+| Install Build | 19045.6216 (clean offline) |
+| Post-Boot Build | 19045.7058 (KB5078885 via FirstLogonCommands) |
+| Updates Offline | KB5039299, KB5050081, KB5063709, KB5075912 (SSU only) |
+| Updates Online (first boot) | KB5078885 via wusa.exe FirstLogonCommands |
+| Apps Added | _(none yet)_ |
+| Output ISO | Win10Pro_22H2_19045.6216_KB5078885staged.iso |
+
+**Notes:**
+- All offline approaches for KB5078885 confirmed non-viable (see v0.4 notes):
+  Options 1 (MSU direct), 2 (two-pass MSU), and 3 (CAB extraction) all result in
+  CBS 14099 / 0x800f0830 — a fundamental ESU offline limitation.
+- Final solution: ship WIM at 19045.6216 (clean, fully tested) with KB5078885 MSU
+  pre-staged at `C:\Updates\windows10.0-kb5078885-x64.msu` inside the WIM.
+- `autounattend.xml` FirstLogonCommands fires `wusa.exe` on first admin logon to
+  install KB5078885, then `shutdown /r /t 30` to reboot to 19045.7058.
+- ISO confirmed clean build — oscdimg exit 0, 11.27 GB.
+
+---
+
 ### v0.4 — 2026-03-29
 
 | Field | Value |
