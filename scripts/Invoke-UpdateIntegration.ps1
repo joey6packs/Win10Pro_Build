@@ -23,13 +23,13 @@
 #>
 
 # -- Paths --------------------------------------------------------------------
-$WimFile    = 'V:\RWJBH-Lab\ISOs\Win10\install_pro.wim'
+$WimFile    = 'V:\Lab\ISOs\Win10\install_pro.wim'
 $WimIndex   = 1
-$MountDir   = 'V:\RWJBH-Lab\Mount'
-$ScratchDir = 'V:\RWJBH-Lab\Scratch'
-$UpdatesDir = 'V:\RWJBH-Lab\ISOs\Win10\Updates'
-$ExtractDir = 'V:\RWJBH-Lab\Scratch\MSU_Extracted'
-$LogFile    = 'V:\RWJBH-Lab\GitHub\Win10Pro_Build\logs\update-integration.log'
+$MountDir   = 'V:\Lab\Mount'
+$ScratchDir = 'V:\Lab\Scratch'
+$UpdatesDir = 'V:\Lab\ISOs\Win10\Updates'
+$ExtractDir = 'V:\Lab\Scratch\MSU_Extracted'
+$LogFile    = 'V:\Lab\GitHub\Win10Pro_Build\logs\update-integration.log'
 $ExpandExe  = 'C:\Windows\System32\expand.exe'
 
 # -- Updates to integrate (in order) -----------------------------------------

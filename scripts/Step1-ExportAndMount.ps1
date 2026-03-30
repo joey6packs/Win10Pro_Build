@@ -7,16 +7,16 @@
 .NOTES
     - Run from an elevated (Administrator) PowerShell prompt.
     - Run this BEFORE Invoke-UpdateIntegration.ps1.
-    - The exported WIM is written to V:\RWJBH-Lab\ISOs\Win10\install.wim
-    - The image is mounted to V:\RWJBH-Lab\Mount\
+    - The exported WIM is written to V:\Lab\ISOs\Win10\install.wim
+    - The image is mounted to V:\Lab\Mount\
 #>
 
 # -- Paths --------------------------------------------------------------------
 $EsdFile    = "E:\x64\sources\install.esd"
-$WimFile    = "V:\RWJBH-Lab\ISOs\Win10\install_pro.wim"
-$MountDir   = "V:\RWJBH-Lab\Mount"
-$ScratchDir = "V:\RWJBH-Lab\Scratch"
-$LogFile    = "V:\RWJBH-Lab\GitHub\Win10Pro_Build\logs\update-integration.log"
+$WimFile    = "V:\Lab\ISOs\Win10\install_pro.wim"
+$MountDir   = "V:\Lab\Mount"
+$ScratchDir = "V:\Lab\Scratch"
+$LogFile    = "V:\Lab\GitHub\Win10Pro_Build\logs\update-integration.log"
 
 $ErrorActionPreference = "Stop"
 New-Item -ItemType Directory -Force -Path (Split-Path $LogFile) | Out-Null

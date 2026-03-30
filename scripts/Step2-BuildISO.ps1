@@ -11,20 +11,20 @@
 
 .NOTES
     - Source ISO must be mounted at E:\
-    - install_pro.wim must exist at V:\RWJBH-Lab\ISOs\Win10\install_pro.wim
+    - install_pro.wim must exist at V:\Lab\ISOs\Win10\install_pro.wim
     - Run from an elevated (Administrator) PowerShell prompt.
-    - Output: V:\RWJBH-Lab\ISOs\Win10Pro_22H2_19045.7058.iso
+    - Output: V:\Lab\ISOs\Win10Pro_22H2_19045.7058.iso
 #>
 
 # -- Paths --------------------------------------------------------------------
 $SourceX64    = 'E:\x64'
-$WimFile      = 'V:\RWJBH-Lab\ISOs\Win10\install_pro.wim'
-$BootWim      = 'V:\RWJBH-Lab\ISOs\Win10\boot_work.wim'
-$StageDir     = 'V:\RWJBH-Lab\ISOs\Win10\ISO_Stage'
-$Autounattend = 'V:\RWJBH-Lab\GitHub\Win10Pro_Build\autounattend\autounattend.xml'
-$OutputISO    = 'V:\RWJBH-Lab\ISOs\Win10Pro_22H2_19045.7058.iso'
+$WimFile      = 'V:\Lab\ISOs\Win10\install_pro.wim'
+$BootWim      = 'V:\Lab\ISOs\Win10\boot_work.wim'
+$StageDir     = 'V:\Lab\ISOs\Win10\ISO_Stage'
+$Autounattend = 'V:\Lab\GitHub\Win10Pro_Build\autounattend\autounattend.xml'
+$OutputISO    = 'V:\Lab\ISOs\Win10Pro_22H2_19045.7058.iso'
 $Oscdimg      = 'C:\Program Files (x86)\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\oscdimg.exe'
-$LogFile      = 'V:\RWJBH-Lab\GitHub\Win10Pro_Build\logs\build-iso.log'
+$LogFile      = 'V:\Lab\GitHub\Win10Pro_Build\logs\build-iso.log'
 
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force -Path (Split-Path $LogFile) | Out-Null

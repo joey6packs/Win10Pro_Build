@@ -51,9 +51,9 @@ KB5075912 (Feb 2026, bridge 3) was attempted offline — SSU CAB applied but CU 
 
 **Integration command:**
 ```powershell
-dism /Image:"V:\RWJBH-Lab\Mount" /Add-Package `
-     /PackagePath:"V:\RWJBH-Lab\ISOs\Win10\windows10.0-kb5039299-x64.msu" `
-     /ScratchDir:"V:\RWJBH-Lab\Scratch"
+dism /Image:"V:\Lab\Mount" /Add-Package `
+     /PackagePath:"V:\Lab\ISOs\Win10\windows10.0-kb5039299-x64.msu" `
+     /ScratchDir:"V:\Lab\Scratch"
 ```
 
 ---

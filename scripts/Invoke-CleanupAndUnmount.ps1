@@ -16,8 +16,8 @@
 #>
 
 # -- Paths --------------------------------------------------------------------
-$MountDir = 'V:\RWJBH-Lab\Mount'
-$LogFile  = 'V:\RWJBH-Lab\GitHub\Win10Pro_Build\logs\update-integration.log'
+$MountDir = 'V:\Lab\Mount'
+$LogFile  = 'V:\Lab\GitHub\Win10Pro_Build\logs\update-integration.log'
 
 $ErrorActionPreference = 'Stop'
 

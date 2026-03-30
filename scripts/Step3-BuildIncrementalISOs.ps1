@@ -50,19 +50,19 @@ param(
 
 # -- Paths --------------------------------------------------------------------
 $EsdFile      = 'E:\x64\sources\install.esd'
-$WorkWim      = 'V:\RWJBH-Lab\ISOs\Win10\incremental_work.wim'
-$MountDir     = 'V:\RWJBH-Lab\Mount'
-$ScratchDir   = 'V:\RWJBH-Lab\Scratch'
-$UpdatesDir   = 'V:\RWJBH-Lab\ISOs\Win10\Updates'
-$ExtractDir   = 'V:\RWJBH-Lab\Scratch\MSU_Extracted'
-$ISOOutDir    = 'V:\RWJBH-Lab\ISOs'
-$StageDir     = 'V:\RWJBH-Lab\ISOs\Win10\ISO_Stage'
+$WorkWim      = 'V:\Lab\ISOs\Win10\incremental_work.wim'
+$MountDir     = 'V:\Lab\Mount'
+$ScratchDir   = 'V:\Lab\Scratch'
+$UpdatesDir   = 'V:\Lab\ISOs\Win10\Updates'
+$ExtractDir   = 'V:\Lab\Scratch\MSU_Extracted'
+$ISOOutDir    = 'V:\Lab\ISOs'
+$StageDir     = 'V:\Lab\ISOs\Win10\ISO_Stage'
 $SourceX64    = 'E:\x64'
-$BootWim      = 'V:\RWJBH-Lab\ISOs\Win10\boot_work.wim'
-$Autounattend = 'V:\RWJBH-Lab\GitHub\Win10Pro_Build\autounattend\autounattend.xml'
+$BootWim      = 'V:\Lab\ISOs\Win10\boot_work.wim'
+$Autounattend = 'V:\Lab\GitHub\Win10Pro_Build\autounattend\autounattend.xml'
 $Oscdimg      = 'C:\Program Files (x86)\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\oscdimg.exe'
 $ExpandExe    = 'C:\Windows\System32\expand.exe'
-$LogFile      = 'V:\RWJBH-Lab\GitHub\Win10Pro_Build\logs\incremental-build.log'
+$LogFile      = 'V:\Lab\GitHub\Win10Pro_Build\logs\incremental-build.log'
 
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force -Path (Split-Path $LogFile) | Out-Null
@@ -174,7 +174,7 @@ if ($ssu) { Apply-Package -PackagePath $ssu.FullName -Label "KB5039299 SSU"; Dis
 Apply-Package -PackagePath $cu.FullName -Label "KB5039299 CU"
 Dismount-Commit
 
-$clean4598 = 'V:\RWJBH-Lab\ISOs\Win10\wim_4598.wim'
+$clean4598 = 'V:\Lab\ISOs\Win10\wim_4598.wim'
 Export-CleanWim -DestPath $clean4598
 Build-ISO -WimPath $clean4598 -ISOPath (Join-Path $ISOOutDir 'Win10Pro_22H2_19045.4598.iso')
 Write-Log '=== STEP 1 COMPLETE: 19045.4598 ISO built ==='
@@ -198,7 +198,7 @@ if ($ssu) { Apply-Package -PackagePath $ssu.FullName -Label "KB5050081 SSU"; Dis
 Apply-Package -PackagePath $cu.FullName -Label "KB5050081 CU"
 Dismount-Commit
 
-$clean5440 = 'V:\RWJBH-Lab\ISOs\Win10\wim_5440.wim'
+$clean5440 = 'V:\Lab\ISOs\Win10\wim_5440.wim'
 Export-CleanWim -DestPath $clean5440
 Build-ISO -WimPath $clean5440 -ISOPath (Join-Path $ISOOutDir 'Win10Pro_22H2_19045.5440.iso')
 Write-Log '=== STEP 2 COMPLETE: 19045.5440 ISO built ==='
@@ -222,7 +222,7 @@ if ($ssu) { Apply-Package -PackagePath $ssu.FullName -Label "KB5063709 SSU"; Dis
 Apply-Package -PackagePath $cu.FullName -Label "KB5063709 CU"
 Dismount-Commit
 
-$clean6216 = 'V:\RWJBH-Lab\ISOs\Win10\wim_6216.wim'
+$clean6216 = 'V:\Lab\ISOs\Win10\wim_6216.wim'
 Export-CleanWim -DestPath $clean6216
 Build-ISO -WimPath $clean6216 -ISOPath (Join-Path $ISOOutDir 'Win10Pro_22H2_19045.6216.iso')
 Write-Log '=== STEP 3 COMPLETE: 19045.6216 ISO built ==='
@@ -253,7 +253,7 @@ if ($TargetBuild -eq '7058direct') {
     }
     Dismount-Commit
 
-    $clean7058d = 'V:\RWJBH-Lab\ISOs\Win10\wim_7058direct.wim'
+    $clean7058d = 'V:\Lab\ISOs\Win10\wim_7058direct.wim'
     Export-CleanWim -DestPath $clean7058d
     Build-ISO -WimPath $clean7058d -ISOPath (Join-Path $ISOOutDir 'Win10Pro_22H2_19045.7058_direct.iso')
     Write-Log '=== STEP 4 COMPLETE (7058direct): 19045.7058_direct ISO built ==='
@@ -277,7 +277,7 @@ Mount-Wim
 Apply-Package -PackagePath $ssu.FullName -Label "KB5075912 SSU"
 Dismount-Commit
 
-$clean6935 = 'V:\RWJBH-Lab\ISOs\Win10\wim_6935.wim'
+$clean6935 = 'V:\Lab\ISOs\Win10\wim_6935.wim'
 Export-CleanWim -DestPath $clean6935
 Build-ISO -WimPath $clean6935 -ISOPath (Join-Path $ISOOutDir 'Win10Pro_22H2_19045.6935.iso')
 Write-Log '=== STEP 4 COMPLETE: 19045.6935 ISO built ==='
@@ -305,7 +305,7 @@ if ($SkipCodes -contains $rc) {
 }
 Dismount-Commit
 
-$clean7058 = 'V:\RWJBH-Lab\ISOs\Win10\wim_7058.wim'
+$clean7058 = 'V:\Lab\ISOs\Win10\wim_7058.wim'
 Export-CleanWim -DestPath $clean7058
 Build-ISO -WimPath $clean7058 -ISOPath (Join-Path $ISOOutDir 'Win10Pro_22H2_19045.7058_fresh.iso')
 Write-Log '=== STEP 5 COMPLETE: 19045.7058_fresh ISO built ==='

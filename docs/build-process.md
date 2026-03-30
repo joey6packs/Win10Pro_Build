@@ -19,7 +19,7 @@ Source ISO  →  Extract  →  Mount WIM  →  Integrate Updates  →  Add Apps/
 2. Working directory layout for this build:
 
 ```
-V:\RWJBH-Lab\
+V:\Lab\
 ├── ISOs\Win10\       # Source ISO and downloaded .msu update files
 ├── Scratch\          # DISM scratch space (temp)
 └── GitHub\Win10Pro_Build\
@@ -43,7 +43,7 @@ For this build `Windows10.iso` mounts at **E:\**.
 
 If you prefer to work from extracted files:
 ```
-robocopy D:\ V:\RWJBH-Lab\ISOs\Win10\ISO\ /E
+robocopy D:\ V:\Lab\ISOs\Win10\ISO\ /E
 ```
 
 ---
@@ -68,7 +68,7 @@ integrate updates into an ESD directly — it must be exported to a writable WIM
 ```powershell
 # Export Windows 10 Pro index (index 6) to a writable WIM
 dism /Export-Image /SourceImageFile:"E:\x64\sources\install.esd" /SourceIndex:6 `
-     /DestinationImageFile:"V:\RWJBH-Lab\ISOs\Win10\install.wim" /Compress:max /CheckIntegrity
+     /DestinationImageFile:"V:\Lab\ISOs\Win10\install.wim" /Compress:max /CheckIntegrity
 ```
 
 > Or use the script: `scripts\Step1-ExportAndMount.ps1` (handles detection, export, and mount in one step)
@@ -78,8 +78,8 @@ dism /Export-Image /SourceImageFile:"E:\x64\sources\install.esd" /SourceIndex:6 
 ## Step 4 — Mount the Install Image
 
 ```powershell
-dism /Mount-Image /ImageFile:"V:\RWJBH-Lab\ISOs\Win10\install.wim" `
-     /Index:1 /MountDir:"V:\RWJBH-Lab\Mount"
+dism /Mount-Image /ImageFile:"V:\Lab\ISOs\Win10\install.wim" `
+     /Index:1 /MountDir:"V:\Lab\Mount"
 ```
 
 ---
@@ -104,7 +104,7 @@ KB5078885 is staged into the image in Step 8 (Invoke-CleanupAndUnmount.ps1).
 
 Verify integrated packages:
 ```powershell
-dism /Image:"V:\RWJBH-Lab\Mount" /Get-Packages
+dism /Image:"V:\Lab\Mount" /Get-Packages
 ```
 
 ---
@@ -136,7 +136,7 @@ install KB5078885 on first logon (from `C:\Updates\` in the image — staged in 
 
 Copy the answer file to the root of the ISO or USB before booting:
 ```powershell
-Copy-Item "V:\RWJBH-Lab\GitHub\Win10Pro_Build\autounattend\autounattend.xml" `
+Copy-Item "V:\Lab\GitHub\Win10Pro_Build\autounattend\autounattend.xml" `
           "<ISO root>\" -Force
 ```
 
@@ -145,7 +145,7 @@ Copy-Item "V:\RWJBH-Lab\GitHub\Win10Pro_Build\autounattend\autounattend.xml" `
 ## Step 8 — Stage KB5078885, Clean Up, and Unmount
 
 `Invoke-CleanupAndUnmount.ps1` does the following in order:
-1. Copies KB5078885.msu from `V:\RWJBH-Lab\ISOs\Win10\` into `C:\Updates\` in the mounted WIM
+1. Copies KB5078885.msu from `V:\Lab\ISOs\Win10\` into `C:\Updates\` in the mounted WIM
 2. Runs `dism /Cleanup-Image /StartComponentCleanup /ResetBase` to reduce WIM size
 3. Unmounts and commits the image
 
@@ -153,7 +153,7 @@ Copy-Item "V:\RWJBH-Lab\GitHub\Win10Pro_Build\autounattend\autounattend.xml" `
 scripts\Invoke-CleanupAndUnmount.ps1
 ```
 
-> Run as Administrator. KB5078885.msu must be present in `V:\RWJBH-Lab\ISOs\Win10\` before running.
+> Run as Administrator. KB5078885.msu must be present in `V:\Lab\ISOs\Win10\` before running.
 
 ---
 
